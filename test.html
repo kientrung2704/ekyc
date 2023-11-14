@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Require the peer dependencies of face-detection. -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+
+    <!-- You must explicitly require a TF.js backend if you're not using the TF.js union bundle. -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-detection"></script>
+    <title>Document</title>
+    <style>
+      body {
+        margin: 0;
+      }
+
+      #stats {
+        position: relative;
+        width: 100%;
+        height: 80px;
+      }
+
+      #main {
+        position: relative;
+        margin: 0;
+      }
+
+      #canvas-wrapper {
+        position: relative;
+      }
+
+      #output {
+        border-radius: 50%;
+      }
+
+      .container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .notify {
+        min-height: 40px;
+        max-width: 240px;
+        width: 100%;
+        height: 100%;
+        box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 0px 8px;
+        border-radius: 8px;
+      }
+
+      .error-noti {
+        color: #ee0033;
+      }
+
+      .success-noti {
+        color: green;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="canvas-wrapper">
+        <canvas id="output"></canvas>
+        <video
+          id="video"
+          playsinline
+          style="
+            -webkit-transform: scaleX(-1);
+            transform: scaleX(-1);
+            visibility: hidden;
+            width: auto;
+            height: auto;
+          "
+        ></video>
+        <div
+          id="animation"
+          style="
+            position: absolute;
+            top: auto;
+            top: 0;
+            left: 50%;
+            transform: translate(-50%, 0);
+          "
+        ></div>
+      </div>
+      <div class="notify" id="notify"></div>
+    </div>
+  </body>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.4/lottie.min.js"></script>
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"
+    integrity="sha512-WFN04846sdKMIP5LKNphMaWzU7YpMyCU245etK3g/2ARYbPK9Ub18eG+ljU96qKRCWh+quCY7yefSmlkQw1ANQ=="
+    crossorigin="anonymous"
+    referrerpolicy="no-referrer"
+  ></script>
+  <script src="./lottie_new.js"></script>
+  <script type="module">
+    function isiOS() {
+      return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    }
+
+    function isAndroid() {
+      return /Android/i.test(navigator.userAgent);
+    }
+
+    function isMobile() {
+      return isAndroid() || isiOS();
+    }
+
+    let RECORD = true;
+    let CHECK = true;
+
+    const MOVE_CENTER = 80;
+    const HOLD = {
+      left: 25,
+      right: 25,
+      bottom: 30,
+    };
+
+    const VIDEO_SIZE = {
+      "640 X 480": { width: 640, height: 480 },
+      "640 X 360": { width: 640, height: 360 },
+      "360 X 270": { width: 360, height: 270 },
+      "240 X 360": { width: 240, height: 360 },
+    };
+    const STATE = {
+      camera: { targetFPS: 60, sizeOption: "240 X 360" },
+      backend: "",
+      flags: {},
+      modelConfig: {
+        boundingBox: true,
+      },
+    };
+    const MEDIAPIPE_FACE_CONFIG = {
+      maxFaces: 1,
+      boundingBox: true,
+      keypoints: true,
+      modelType: "short",
+    };
+    const CAMERA_POINT = {
+      small: { left: [240, 180], right: [0, 180], bottom: [120, 360] },
+      big: { left: [240, 180], right: [0, 180], bottom: [120, 360] },
+    };
+    let animation;
+    let step = 1;
+    await loadAnimationColor();
+
+    const NOTIFY = document.getElementById("notify");
+
+    async function loadAnimationColor() {
+      const response = await fetch("./animation.json");
+      const json = await response.json();
+      const arr1 = new Array(23).fill("#ee0033");
+      const arr2 = new Array(2).fill("#ffffff");
+      const color = arr1.concat(arr2);
+      animation = lottie.loadAnimation({
+        container: document.getElementById("animation"),
+        // path: "animation.json",
+        renderer: "svg",
+        loop: !1,
+        autoplay: !1,
+        name: "oval",
+        animationData: colorify(color, json),
+      });
+    }
+
+    function drawPath(ctx, points, closePath) {
+      const region = new Path2D();
+      region.moveTo(points[0][0], points[0][1]);
+      for (let i = 1; i < points.length; i++) {
+        const point = points[i];
+        region.lineTo(point[0], point[1]);
+      }
+
+      if (closePath) {
+        region.closePath();
+      }
+      ctx.stroke(region);
+    }
+
+    async function createDetector() {
+      const model = faceDetection.SupportedModels.MediaPipeFaceDetector;
+      const detectorConfig = {
+        runtime: "mediapipe",
+        solutionPath: "https://cdn.jsdelivr.net/npm/@mediapipe/face_detection",
+        // or 'base/node_modules/@mediapipe/face_detection' in npm.
+      };
+      detector = await faceDetection.createDetector(model, detectorConfig);
+      return detector;
+    }
+
+    function drawResults(ctx, faces, boundingBox, showKeypoints) {
+      faces.forEach((face) => {
+        const box = face.box;
+        // if (!boundingBox) {
+        //   ctx.strokeStyle = "#FF2C35";
+        //   ctx.lineWidth = 1;
+
+        //   const box = face.box;
+        //   drawPath(
+        //     ctx,
+        //     [
+        //       [box.xMin, box.yMin],
+        //       [box.xMax, box.yMin],
+        //       [box.xMax, box.yMax],
+        //       [box.xMin, box.yMax],
+        //     ],
+        //     true
+        //   );
+        // }
+        let rightPoint = [face.keypoints[4].x, face.keypoints[4].y];
+        let leftPoint = [face.keypoints[5].x, face.keypoints[5].y];
+        let bottomPoint = mid_point([box.xMax, box.yMax], [box.xMin, box.yMax]);
+
+        let distanceRight = distance(rightPoint, CAMERA_POINT.small.right);
+        let distanceLeft = distance(leftPoint, CAMERA_POINT.small.left);
+        let distanceBottom = distance(bottomPoint, CAMERA_POINT.small.bottom);
+        if (CHECK) {
+          if (
+            distanceRight >= 15 &&
+            distanceRight <= HOLD.right &&
+            distanceLeft >= 15 &&
+            distanceLeft <= HOLD.left &&
+            distanceBottom >= 20 &&
+            distanceBottom <= HOLD.bottom
+          ) {
+            // console.log("Giữ Nguyên");
+            changeNotify(true, "Giữ cố định");
+
+            CHECK = false;
+            if (step === 1) {
+              animation.playSegments([0, 100], !0);
+            }
+            if (step === 2) {
+              // setTimeout(function () {
+              step = 3;
+              CHECK = false;
+
+              animation.playSegments([120, 180], !0);
+              // }, 5000);
+            }
+            setTimeout(() => {
+              CHECK = true;
+              step = 2;
+            }, 1500);
+            // setTimeout(function () {
+            //   animation.playSegments([120, 180], !0);
+            // }, 5000);
+          } else if (
+            distanceRight >= MOVE_CENTER ||
+            distanceLeft >= MOVE_CENTER ||
+            distanceBottom >= MOVE_CENTER
+          ) {
+            changeNotify(false, "Đưa mặt vào giữa khung hình");
+          } else if (
+            (distanceRight > HOLD.right && distanceRight < MOVE_CENTER) ||
+            (distanceLeft > HOLD.left && distanceLeft < MOVE_CENTER) ||
+            (distanceBottom > HOLD.bottom && distanceBottom < MOVE_CENTER)
+          ) {
+            changeNotify(false, "Di chuyển gần hơn");
+          } else {
+            changeNotify(false, "Di chuyển xa hơn");
+          }
+        }
+
+        // console.log("Right: ", distanceRight);
+        // console.log("Left: ", distanceLeft);
+        // console.log("Bottom: ", distanceBottom);
+        // let keypoints = [
+        //   [face.keypoints[4].x, face.keypoints[4].y],
+        //   // [box.xMin, box.yMin],
+        //   // [box.xMax, box.yMin],
+        //   [face.keypoints[5].x, face.keypoints[5].y],
+        //   [0, 0],
+        //   // [box.xMax, box.yMax],
+        //   // [box.xMin, box.yMax],
+        // ];
+        // // if (showKeypoints) {
+        // ctx.fillStyle = "#FF2C35";
+
+        // keypoints.push(mid_point([box.xMax, box.yMax], [box.xMin, box.yMax]));
+        // const areas = area(keypoints[0], keypoints[1], keypoints[2]);
+        // const tri = 0.5 * (240 * 180);
+        // console.log(areas);
+        // if (areas < 18000) {
+        //   console.log("Gần hơn");
+        // } else if (areas > tri) {
+        //   console.log("Xa 1 chút");
+        // } else if (areas >= 18000 && areas <= tri) {
+        //   console.log("Giữ Nguyên");
+        // }
+        // for (let i = 0; i < 1; i++) {
+        //   const x = keypoints[i][0];
+        //   const y = keypoints[i][1];
+
+        //   ctx.beginPath();
+        //   ctx.arc(x, y, 3 /* radius */, 0, 2 * Math.PI);
+        //   ctx.fill();
+        // }
+        // let distanceRight = distance(keypoints[0], [0, 180]);
+        // let distanceLeft = distance(keypoints[1], [240, 180]);
+        // let distanceBottom = distance(
+        //   mid_point([box.xMax, box.yMax], [box.xMin, box.yMax])
+        // );
+
+        // console.log("Right: ", distanceRight);
+        // console.log("Left: ", distanceLeft);
+        // console.log("Bottom: ", distanceBottom);
+
+        // if (distanceRight <= 25 && distanceLeft <= 25 && distanceBottom <= 375) {
+        //   console.log("Giữ Nguyên");
+        // } else if () {
+
+        // }
+
+        // }
+      });
+      // ctx.beginPath();
+      // // ctx.arc(0, 180, 30 /* radius */, 0, 2 * Math.PI);
+      // // ctx.arc(240, 180, 30 /* radius */, 0, 2 * Math.PI);
+      // ctx.arc(120, 360, 3 /* radius */, 0, 2 * Math.PI);
+      // ctx.fill();
+    }
+
+    function changeNotify(type, text) {
+      if (type) {
+        NOTIFY.classList.add("success-noti");
+        NOTIFY.classList.add("error-noti");
+      } else {
+        NOTIFY.classList.remove("success-noti");
+        NOTIFY.classList.add("error-noti");
+      }
+      NOTIFY.innerHTML = text;
+    }
+
+    function mid_point([x1, y1], [x2, y2]) {
+      return [(x1 + x2) / 2, (y1 + y2) / 2];
+    }
+
+    function area([x1, y1], [x2, y2], [x3, y3]) {
+      return (
+        0.5 *
+        Math.abs(x1 * y2 + x2 * y3 + x3 * y1 - (y1 * x2 + y2 * x3 + y3 * x1))
+      );
+    }
+
+    function distance([x1, y1], [x2, y2]) {
+      var a = x1 - x2;
+      var b = y1 - y2;
+
+      return Math.sqrt(a * a + b * b);
+    }
+
+    class Camera {
+      constructor() {
+        this.video = document.getElementById("video");
+        this.canvas = document.getElementById("output");
+        this.ctx = this.canvas.getContext("2d");
+      }
+
+      /**
+       * Initiate a Camera instance and wait for the camera stream to be ready.
+       * @param cameraParam From app `STATE.camera`.
+       */
+      static async setupCamera(cameraParam) {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error(
+            "Browser API navigator.mediaDevices.getUserMedia not available"
+          );
+        }
+
+        const { targetFPS, sizeOption } = cameraParam;
+        const $size = VIDEO_SIZE[sizeOption];
+        const videoConfig = {
+          audio: false,
+          video: {
+            facingMode: "user",
+            // Only setting the video to a specified size for large screen, on
+            // mobile devices accept the default size.
+            width: isMobile() ? VIDEO_SIZE["360 X 270"].width : $size.width,
+            height: isMobile() ? VIDEO_SIZE["360 X 270"].height : $size.height,
+            frameRate: {
+              ideal: targetFPS,
+            },
+            zoom: true,
+          },
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(videoConfig);
+
+        const camera = new Camera();
+        camera.video.srcObject = stream;
+
+        await new Promise((resolve) => {
+          camera.video.onloadedmetadata = () => {
+            resolve(video);
+          };
+        });
+
+        camera.video.play();
+
+        const videoWidth = camera.video.videoWidth;
+        const videoHeight = camera.video.videoHeight;
+        // Must set below two lines, otherwise video element doesn't show.
+        camera.video.width = videoWidth;
+        camera.video.height = videoHeight;
+
+        camera.canvas.width = videoWidth;
+        camera.canvas.height = videoHeight;
+        const canvasContainer = document.querySelector(".canvas-wrapper");
+        canvasContainer.style = `width: ${videoWidth}px; height: ${videoHeight}px; border-radius: 50%`;
+
+        // Because the image from camera is mirrored, need to flip horizontally.
+        camera.ctx.translate(camera.video.videoWidth, 0);
+        camera.ctx.scale(-1, 1);
+
+        return camera;
+      }
+
+      async drawCtx() {
+        // return new Promise(function (i) {
+        //   var n = document.getElementById("video"),
+        //     a = document.getElementById("output");
+        //   let j = 0.6 * 1.5 * 0.75;
+        //   let t = 0.6;
+        //   let o = ((1 - j) / 2) * n.videoWidth;
+        //   let c = ((1 - t) / 2) * n.videoHeight;
+        //   let l = n.videoWidth * j;
+        //   let s = n.videoHeight;
+        //   let d = 0;
+        //   let r = 0;
+        //   let v = n.videoWidth * j;
+        //   let _ = n.videoHeight;
+        //   l < 0 && ((o += l), (l = Math.abs(l))),
+        //     s < 0 && ((c += s), (s = Math.abs(s))),
+        //     v < 0 && ((d += v), (v = Math.abs(v))),
+        //     _ < 0 && ((r += _), (_ = Math.abs(_)));
+
+        //   const p = Math.max(o, 0),
+        //     u = Math.min(o + l, n.videoWidth),
+        //     g = Math.max(c, 0),
+        //     m = Math.min(c + s, n.videoHeight),
+        //     y = v / l,
+        //     b = _ / s;
+
+        //   console.log(d, o, y);
+        //   a.getContext("2d").drawImage(
+        //     n,
+        //     p,
+        //     g,
+        //     u - p,
+        //     m - g,
+        //     o < 0 ? d - o * y : d,
+        //     c < 0 ? r - c * b : r,
+        //     (u - p) * y,
+        //     (m - g) * b
+        //     // 0,
+        //     // 0,
+        //     // this.video.videoWidth,
+        //     // this.video.videoHeight
+        //   );
+        //   i(a);
+        // });
+        //     this.ctx.beginPath();
+        // ctx.arc(x, y, 3 /* radius */, 0, 2 * Math.PI);
+        // ctx.fill();
+        this.ctx.drawImage(
+          this.video,
+          0,
+          0,
+          this.video.videoWidth,
+          this.video.videoHeight
+        );
+      }
+
+      drawResults(faces, boundingBox, keypoints) {
+        drawResults(this.ctx, faces, boundingBox, keypoints);
+      }
+    }
+
+    let detector, camera, stats;
+    let startInferenceTime,
+      numInferences = 0;
+    let inferenceTimeSum = 0,
+      lastPanelUpdate = 0;
+    let rafId;
+
+    async function renderResult() {
+      if (camera.video.readyState < 2) {
+        await new Promise((resolve) => {
+          camera.video.onloadeddata = () => {
+            resolve(video);
+          };
+        });
+      }
+
+      let faces = null;
+      // Detector can be null if initialization failed (for example when loading
+      // from a URL that does not exist).
+      if (detector != null) {
+        // FPS only counts the time it takes to finish estimateFaces.
+
+        // Detectors can throw errors, for example when using custom URLs that
+        // contain a model that doesn't provide the expected output.
+        try {
+          faces = await detector.estimateFaces(camera.video, {
+            flipHorizontal: false,
+          });
+        } catch (error) {
+          detector.dispose();
+          detector = null;
+          alert(error);
+        }
+      }
+      await camera.drawCtx();
+
+      // The null check makes sure the UI is not in the middle of changing to a
+      // different model. If during model change, the result is from an old model,
+      // which shouldn't be rendered.
+      if (RECORD) {
+        if (faces && faces.length > 0 && !STATE.isModelChanged) {
+          camera.drawResults(
+            faces,
+            STATE.modelConfig.boundingBox,
+            STATE.modelConfig.keypoints
+          );
+        } else {
+          changeNotify(false, "Đưa mặt vào khung hình");
+        }
+      }
+    }
+
+    async function renderPrediction() {
+      if (!STATE.isModelChanged) {
+        await renderResult();
+      }
+      rafId = requestAnimationFrame(renderPrediction);
+    }
+
+    async function app() {
+      camera = await Camera.setupCamera(STATE.camera);
+
+      detector = await createDetector();
+
+      renderPrediction();
+    }
+    app();
+
+    // Calculate triangle with 3 coordinates
+    // const area = 0.5 * Math.abs((x1 * y2 + x2 * y3 + x3 * y1) - (y1 * x2 + y2 * x3 + y3 * x1));
+  </script>
+</html>

@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="./demo.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-detection"></script>
+  <title>Document</title>
+</head>
+
+<body>
+  <div id="ekyc_sdk_intergrated">
+    <div id="loading-overlay" class="ekyc_d-none">
+      <div class="spinner-container">
+        <div class="lds-default">
+          <div></div>
+          <div></div>
+          <div></div>
+          <div></div>
+          <div></div>
+          <div></div>
+          <div></div>
+          <div></div>
+          <div></div>
+          <div></div>
+          <div></div>
+          <div></div>
+        </div>
+      </div>
+    </div>
+    <div id="viettel_ekyc">
+      <div class="home-demo-ekyc" id="home-demo-ekyc">
+        <div class="title">CHỌN LOẠI GIẤY TỜ</div>
+        <div class="list-choose">
+          <div class="item">
+            <div class="checkbox-wrapper-4">
+              <input class="inp-cbx" name="type" id="verification-id" type="checkbox" value="id" />
+              <label class="cbx" for="verification-id">
+                <span>
+                  <svg width="12px" height="10px">
+                    <use xlink:href="#check-4"></use>
+                  </svg>
+                </span>
+                <span>Chứng minh thư, Thẻ căn cước</span>
+              </label>
+              <svg class="inline-svg">
+                <symbol id="check-4" viewbox="0 0 12 10">
+                  <polyline points="1.5 6 4.5 9 10.5 1"></polyline>
+                </symbol>
+              </svg>
+            </div>
+          </div>
+          <div class="item">
+            <div class="checkbox-wrapper-4">
+              <input class="inp-cbx" name="type" id="verification-passport" type="checkbox" value="passport" />
+              <label class="cbx" for="verification-passport">
+                <span>
+                  <svg width="12px" height="10px">
+                    <use xlink:href="#check-4"></use>
+                  </svg>
+                </span>
+                <span>Hộ chiếu</span>
+              </label>
+              <svg class="inline-svg">
+                <symbol id="check-4" viewbox="0 0 12 10">
+                  <polyline points="1.5 6 4.5 9 10.5 1"></polyline>
+                </symbol>
+              </svg>
+            </div>
+          </div>
+          <div class="item">
+            <div class="checkbox-wrapper-4">
+              <input class="inp-cbx" id="verification-card-drive" type="checkbox" value="card_drive" />
+              <label class="cbx" for="verification-card-drive">
+                <span>
+                  <svg width="12px" height="10px">
+                    <use xlink:href="#check-4"></use>
+                  </svg>
+                </span>
+                <span>Bằng lái xe</span>
+              </label>
+              <svg class="inline-svg">
+                <symbol id="check-4" viewbox="0 0 12 10">
+                  <polyline points="1.5 6 4.5 9 10.5 1"></polyline>
+                </symbol>
+              </svg>
+            </div>
+          </div>
+          <div class="item">
+            <div class="checkbox-wrapper-4">
+              <input class="inp-cbx" name="type" id="verification-army-id" type="checkbox" value="army_id" />
+              <label class="cbx" for="verification-army-id">
+                <span>
+                  <svg width="12px" height="10px">
+                    <use xlink:href="#check-4"></use>
+                  </svg>
+                </span>
+                <span>Chứng minh thư quân đội</span>
+              </label>
+              <svg class="inline-svg">
+                <symbol id="check-4" viewbox="0 0 12 10">
+                  <polyline points="1.5 6 4.5 9 10.5 1"></polyline>
+                </symbol>
+              </svg>
+            </div>
+          </div>
+          <div class="item">
+            <div class="checkbox-wrapper-4">
+              <input class="inp-cbx" id="id-card-chip" name="type" type="checkbox" value="card_chip" />
+              <label class="cbx" for="id-card-chip">
+                <span>
+                  <svg width="12px" height="10px">
+                    <use xlink:href="#check-4"></use>
+                  </svg>
+                </span>
+                <span>Thẻ căn cước gắn chíp</span>
+              </label>
+              <svg class="inline-svg">
+                <symbol id="check-4" viewbox="0 0 12 10">
+                  <polyline points="1.5 6 4.5 9 10.5 1"></polyline>
+                </symbol>
+              </svg>
+            </div>
+          </div>
+          <div class="start-demo" tabindex="6">
+            <button type="button" id="start-demo-ekyc" class="btn-start-demo">
+              TIẾP TỤC
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="step1-demo-ekyc ekyc_d-none" id="step1-demo-ekyc">
+
+        <div class="guide-content">
+          <div class="content-wrapper">
+            <div class="guide-header">
+              <div class="guide-img__header">
+                Hướng dẫn chụp ảnh giấy tờ tùy thân
+              </div>
+              <!-- <div class="close-btn" id="openGuide">
+            <img src="./images/question.svg" alt="" />
+          </div> -->
+            </div>
+
+            <div class="guide-main">
+              <div class="main-img">
+                <img class="img__main" src="./images/cccd_main.png" alt="" />
+              </div>
+              <div class="guide-details row">
+                <div class="guide-component gutter">
+                  <img class="guide-component__image" src="./images/cccd1.svg" alt="" />
+                  <span class="guide-component__description">Là giấy tờ gốc, còn hạn sử dụng, không scan hoặc
+                    photocopy</span>
+                </div>
+                <div class="guide-component gutter">
+                  <img class="guide-component__image" src="./images/cccd2.svg" alt="" />
+                  <span class="guide-component__description">Không sử dụng giấy tờ bị chỉnh sửa, không chính chủ</span>
+                </div>
+                <div class="guide-component gutter">
+                  <img class="guide-component__image" src="./images/cccd3.svg" alt="" />
+                  <span class="guide-component__description">Giấy tờ không bị cắt góc, đục lỗ, vật lạ bên trong</span>
+                </div>
+                <div class="guide-component gutter">
+                  <img class="guide-component__image" src="./images/cccd4.svg" alt="" />
+                  <span class="guide-component__description">Giấy tờ không bị mờ, sáng, tối</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="guide-detail">
+          <div id="continue-demo-ekyc" class="use-img-btn demo-btn">
+            Đã hiểu
+          </div>
+        </div>
+        <div class="guide guide-bg" id="guide">
+          <div class="ekyc-header ekyc-header-white" id="ekyc-header">
+            <div class="ekyc-head-wrapper">
+              <div class="ekyc-close-btn" id="closeEkyc">
+                <svg width="26" height="26" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <g filter="url(#filter0_d_4259_2072)">
+                    <path
+                      d="M14 12.5858L7.70711 6.29289C7.31658 5.90237 6.68342 5.90237 6.29289 6.29289C5.90237 6.68342 5.90237 7.31658 6.29289 7.70711L12.5858 14L6.29289 20.2929C5.90237 20.6834 5.90237 21.3166 6.29289 21.7071C6.68342 22.0976 7.31658 22.0976 7.70711 21.7071L14 15.4142L20.2929 21.7071C20.6834 22.0976 21.3166 22.0976 21.7071 21.7071C22.0976 21.3166 22.0976 20.6834 21.7071 20.2929L15.4142 14L21.7071 7.70711C22.0976 7.31658 22.0976 6.68342 21.7071 6.29289C21.3166 5.90237 20.6834 5.90237 20.2929 6.29289L14 12.5858Z"
+                      fill="#979797" />
+                    <mask id="mask0_4259_2072" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="6" y="6"
+                      width="16" height="16">
+                      <path
+                        d="M14 12.5858L7.70711 6.29289C7.31658 5.90237 6.68342 5.90237 6.29289 6.29289C5.90237 6.68342 5.90237 7.31658 6.29289 7.70711L12.5858 14L6.29289 20.2929C5.90237 20.6834 5.90237 21.3166 6.29289 21.7071C6.68342 22.0976 7.31658 22.0976 7.70711 21.7071L14 15.4142L20.2929 21.7071C20.6834 22.0976 21.3166 22.0976 21.7071 21.7071C22.0976 21.3166 22.0976 20.6834 21.7071 20.2929L15.4142 14L21.7071 7.70711C22.0976 7.31658 22.0976 6.68342 21.7071 6.29289C21.3166 5.90237 20.6834 5.90237 20.2929 6.29289L14 12.5858Z"
+                        fill="white" />
+                    </mask>
+                    <g mask="url(#mask0_4259_2072)">
+                      <rect width="28" height="28" fill="#979797" />
+                    </g>
+                  </g>
+                  <defs>
+                    <filter id="filter0_d_4259_2072" x="-2" y="-1" width="32" height="32" filterUnits="userSpaceOnUse"
+                      color-interpolation-filters="sRGB">
+                      <feFlood flood-opacity="0" result="BackgroundImageFix" />
+                      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
+                        result="hardAlpha" />
+                      <feOffset dy="1" />
+                      <feGaussianBlur stdDeviation="1" />
+                      <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.2 0" />
+                      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_4259_2072" />
+                      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_4259_2072" result="shape" />
+                    </filter>
+                  </defs>
+                </svg>
+
+              </div>
+              <div class="ekyc-header-title">Chụp ảnh giấy tờ tùy thân</div>
+              <div class="ekyc-question-btn" id="openGuide">
+                <svg width="26" height="26" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <g filter="url(#filter0_b_4259_6140)">
+                    <circle cx="13" cy="13" r="13" fill="#979797" fill-opacity="0.35" />
+                  </g>
+                  <path opacity="0.5" fill-rule="evenodd" clip-rule="evenodd"
+                    d="M8.50909 10.2166H10.9111C10.9928 8.90429 11.8412 8.0682 13.1597 8.0682C14.4476 8.0682 15.3061 8.88313 15.3061 10.005C15.3061 11.0527 14.8769 11.6242 13.6094 12.418C12.1989 13.2753 11.6061 14.2278 11.6981 15.7941L11.7083 16.5455H14.0796V15.9317C14.0796 14.8734 14.4578 14.323 15.7968 13.5187C17.1868 12.6614 17.9636 11.529 17.9636 9.90972C17.9636 7.58136 16.0932 5.90918 13.2926 5.90918C10.2569 5.90918 8.59086 7.72953 8.50909 10.2166ZM12.8859 21.2729C13.5438 21.2729 14.0636 20.7467 14.0636 20.0869C14.0636 19.4271 13.5438 18.9092 12.8859 18.9092C12.228 18.9092 11.7 19.4271 11.7 20.0869C11.7 20.7467 12.228 21.2729 12.8859 21.2729Z"
+                    fill="#979797" />
+                  <defs>
+                    <filter id="filter0_b_4259_6140" x="-54.3656" y="-54.3656" width="134.731" height="134.731"
+                      filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+                      <feFlood flood-opacity="0" result="BackgroundImageFix" />
+                      <feGaussianBlur in="BackgroundImageFix" stdDeviation="27.1828" />
+                      <feComposite in2="SourceAlpha" operator="in" result="effect1_backgroundBlur_4259_6140" />
+                      <feBlend mode="normal" in="SourceGraphic" in2="effect1_backgroundBlur_4259_6140" result="shape" />
+                    </filter>
+                  </defs>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="front ekyc_d-non">
+            <div class="front-type">
+              <div class="front-type__left">CCCD</div>
+              <div class="front-type__right">Mặt trước</div>
+            </div>
+            <div class="face-message ekyc_d-none" id="notify"></div>
+
+            <div class="canvas-wrapper" id="oval">
+              <div class="over"></div>
+              <video id="video" playsinline style="
+                    display: none;
+                    -webkit-transform: scaleX(-1);
+                    transform: scaleX(-1);
+                    visibility: hidden;
+                    width: auto;
+                    height: auto;
+                  "></video>
+              <canvas id="output"></canvas>
+              <canvas id="img-output"></canvas>
+              <!-- <div
+                  id="animation"
+                  style="
+                    position: absolute;
+                    top: auto;
+                    top: 25%;
+                    left: 50%;
+                    transform: translate(-50%, 0);
+                  "
+                ></div> -->
+              <img id="outPut" class="ekyc_d-none" crossorigin="anonymous" />
+            </div>
+
+            <div class="error-message ekyc_d-none" id="error-message">
+              <div class="error-message__label" id="error-label">
+                Ảnh không hợp lệ
+              </div>
+              <div class="error-message__detail" id="error-detail">
+                Ảnh mất góc
+              </div>
+            </div>
+            <div class="take-wapper" id="wrapper">
+              <img src="./images/camera.svg" id="take-img" class="camera-icon" alt="" />
+              <div class="redo-btn ekyc_d-none" id="redoBtn">Chụp lại</div>
+              <div class="use-img-btn red-default ekyc_d-none" id="useImg">
+                Dùng ảnh
+              </div>
+            </div>
+          </div>
+
+          <div class="result ekyc_d-none" id="results">
+            <div class="result-image">
+              <div class="result-image__front">
+                <img src="" id="result_front" alt="" />
+              </div>
+              <div class="result-image__back">
+                <img src="" id="result_back" alt="" />
+              </div>
+            </div>
+            <div class="matching-wrap">
+              <img class="img-face" src="" id="result_face" alt="" />
+              <div class="d-flex flex-column">
+                <p class="red-color font-bold text-xl mb-0" id="result_matching"></p>
+                <p class="mb-0">Độ khớp khuôn mặt</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.4/lottie.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"
+  integrity="sha512-WFN04846sdKMIP5LKNphMaWzU7YpMyCU245etK3g/2ARYbPK9Ub18eG+ljU96qKRCWh+quCY7yefSmlkQw1ANQ=="
+  crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="./lottie_new.js"></script>
+<script>
+  const init = {
+    LIVENESS_CARD: true,
+    FACE_LIVENESS: true,
+    FACE_MATCHING: true,
+  };
+</script>
+<script src="./sdk.js"></script>
